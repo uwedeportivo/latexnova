@@ -36,10 +36,6 @@ func (ltpfs *LaTeXPreviewFS) Open(name string) (fs.File, error) {
 		return os.Open(pdfpath)
 	}
 
-	pdfpath = filepath.Join(dir, "main.pdf")
-	if PathExists(pdfpath) {
-		return os.Open(pdfpath)
-	}
 	pdfpath = filepath.Join(dir, "book.pdf")
 	if PathExists(pdfpath) {
 		return os.Open(pdfpath)
@@ -55,13 +51,32 @@ var (
 	rootDirF = flag.String("root", "", "root dir of project")
 )
 
-func build(path string) error {
+func build(path string, lineNumber string, contentFilename string) error {
 	dir := filepath.Dir(path)
+	dirname := filepath.Base(dir)
 	filename := filepath.Base(path)
 
 	fmt.Printf("invoking latexmk in working directory %s with argument %s\n", dir, filename)
 
-	cmd := exec.Command("latexmk", "-pdf", filename)
+	cmd := exec.Command("latexmk", "--synctex=1", "-interaction=nonstopmode", "-pdf", filename)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	pdfFilename := dirname + ".pdf"
+	pdfpath := filepath.Join(dir, pdfFilename)
+
+	if !PathExists(pdfpath) {
+		pdfFilename = "book.pdf"
+	}
+
+	fmt.Printf("invoking displayline in working directory %s with arguments %s %s %s\n", dir, lineNumber, pdfFilename, contentFilename)
+
+	cmd = exec.Command("/Applications/Skim.app/Contents/SharedSupport/displayline", "-r", lineNumber, pdfFilename, contentFilename)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -110,6 +125,7 @@ func main() {
 			Aliases: []string{"b"},
 			Usage:   "invoke latexmk",
 			Action: func(c *cli.Context) error {
+				lineNumber := c.Args().Get(1)
 				path := c.Args().First()
 				if path == "" {
 					return nil
@@ -117,18 +133,19 @@ func main() {
 				dir := filepath.Dir(path)
 				dirname := filepath.Base(dir)
 				texpath := filepath.Join(dir, dirname+".tex")
+				contentFilename := filepath.Base(path)
 
 				if PathExists(texpath) {
-					return build(texpath)
+					return build(texpath, lineNumber, contentFilename)
 				}
 
 				texpath = filepath.Join(dir, "main.tex")
 				if PathExists(texpath) {
-					return build(texpath)
+					return build(texpath, lineNumber, contentFilename)
 				}
 				texpath = filepath.Join(dir, "book.tex")
 				if PathExists(texpath) {
-					return build(texpath)
+					return build(texpath, lineNumber, contentFilename)
 				}
 				return nil
 			},
