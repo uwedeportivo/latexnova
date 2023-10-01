@@ -58,7 +58,7 @@ func build(path string, lineNumber string, contentFilename string) error {
 
 	fmt.Printf("invoking latexmk in working directory %s with argument %s\n", dir, filename)
 
-	cmd := exec.Command("latexmk", "--synctex=1", "-interaction=nonstopmode", "-pdf", filename)
+	cmd := exec.Command("latexmk", "-synctex=1", "-interaction=nonstopmode", "-pdf", filename)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
